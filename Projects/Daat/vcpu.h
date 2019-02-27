@@ -717,6 +717,58 @@ extern "C" {
     C_ASSERT(sizeof(REGISTERS_FRAME) == 0x280);
 #endif // !_WIN64
 
+    typedef struct _INTERRUPTION_FRAME {
+        ULONG_PTR ProgramCounter;
+        ULONG_PTR SegCs;
+        ULONG_PTR Eflags;
+    }INTERRUPTION_FRAME, *PINTERRUPTION_FRAME;
+
+#define DivideErrorFault        0  
+#define DebugTrapOrFault        1  
+#define NmiInterrupt            2  
+#define BreakpointTrap          3  
+#define OverflowTrap            4  
+#define BoundFault              5  
+#define InvalidOpcodeFault      6  
+#define NpxNotAvailableFault    7  
+#define DoubleFaultAbort        8  
+#define NpxSegmentOverrunAbort  9  
+#define InvalidTssFault         10 
+#define SegmentNotPresentFault  11 
+#define StackFault              12 
+#define GeneralProtectionFault  13 
+#define PageFault               14 
+#define FloatingErrorFault      16 
+#define AlignmentFault          17 
+#define McheckAbort             18 
+#define XmmException            19 
+#define ApcInterrupt            31 
+#define RaiseAssertion          44 
+#define DebugServiceTrap        45 
+#define DpcInterrupt            47 
+#define IpiInterrupt            225
+
+    typedef
+        VOID
+        (NTAPI * PIDT_HANDLER)(
+            VOID
+            );
+
+    typedef union _KIDT_HANDLER {
+        struct {
+#ifndef _WIN64
+            USHORT Offset;
+            USHORT ExtendedOffset;
+#else
+            USHORT OffsetLow;
+            USHORT OffsetMiddle;
+            ULONG OffsetHigh;
+#endif // !_WIN64
+        };
+
+        ULONG_PTR Address;
+    } KIDT_HANDLER, *PKIDT_HANDLER;
+
     typedef struct _CCB {
         DECLSPEC_ALIGN(PAGE_SIZE) struct {
             UCHAR KernelStack[KERNEL_LARGE_STACK_SIZE - sizeof(REGISTERS_FRAME)];
@@ -728,6 +780,8 @@ extern "C" {
             VMX_VMCS Vmcs;
             UCHAR Bitmap[PAGE_SIZE];
         }Region;
+
+        ULARGE_INTEGER ExceptionBitmap;
 
         CPU_FEATURE Feature;
         VMX_INFO VmxInfo;
@@ -757,34 +811,67 @@ extern "C" {
             __in PREGISTERS_FRAME Registers
         );
 
-    VOID
+    ULONG
         NTAPI
-        CaptureSegment(
-            __out PREGISTERS_FRAME Registers
+        __ops_sldt(
+            __in PUSHORT Selector
+        );
+
+    ULONG
+        NTAPI
+        __ops_str(
+            __in PUSHORT Selector
+        );
+
+    ULONG
+        NTAPI
+        __ops_sgdt(
+            __in PUSHORT Limit
+        );
+
+    ULONG
+        NTAPI
+        __ops_sidt(
+            __in PUSHORT Limit
+        );
+
+    ULONG64
+        NTAPI
+        __ops_readmsr(
+            __in ULONG Register
         );
 
     VOID
         NTAPI
-        CaptureSegmentRegisters(
-            __out PREGISTERS_FRAME Registers
+        __ops_writemsr(
+            __in ULONG Register,
+            __in ULONG64 Value
+        );
+
+    SIZE_T
+        NTAPI
+        __ops_readcr(
+            __in ULONG Register
         );
 
     VOID
         NTAPI
-        CaptureControlRegisters(
-            __out PREGISTERS_FRAME Registers
+        __ops_writecr(
+            __in ULONG Register,
+            __in SIZE_T Value
+        );
+
+    SIZE_T
+        NTAPI
+        __ops_readdr(
+            __in ULONG Register
         );
 
     VOID
         NTAPI
-        CaptureDebugRegisters(
-            __out PREGISTERS_FRAME Registers
-        );
-
-    VOID
-        NTAPI
-        RestoreDebugRegisters(
-            __out PREGISTERS_FRAME Registers
+        __ops_writedr(
+            __in ULONG Register,
+            __in SIZE_T Value
         );
 
 #ifdef __cplusplus
